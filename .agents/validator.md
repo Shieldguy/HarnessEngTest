@@ -120,10 +120,55 @@ Status: **COMPLETE — no further Developer cycles required**
 
 If there are no CONDITIONAL PASS items, omit the "Conditional Pass Details" section entirely.
 
+## CONDITIONAL PASS — User Consultation (MANDATORY)
+
+Whenever one or more features are verdicted **CONDITIONAL PASS**, the Validator must **stop and consult the user** before proceeding. Do not generate the Final Report or invoke the Developer until the user has responded.
+
+### Consultation Message Format
+
+Present the following to the user for each CONDITIONAL PASS feature:
+
+---
+
+**[CONDITIONAL PASS] Feature #N — \<feature name\>**
+
+**What works:** \<brief description of what passes\>
+
+**What is limited / not fully met:**
+- \<limitation 1: concrete, factual\>
+- \<limitation 2: ...\>
+
+**Why this matters:** \<impact on correctness, usability, or downstream use — be plain and direct\>
+
+**Risk if left as-is:** \<low / medium / high\> — \<one sentence explanation\>
+
+**Options:**
+1. **Proceed as-is** — accept this limitation and include it in the Final Report
+2. **Re-implement** — provide an alternative approach for the Developer to attempt:
+   > \<describe the alternative approach here, or ask the user to specify one\>
+3. **Defer** — exclude this feature from the current scope and note it as out-of-scope in the Final Report
+
+**→ Please choose option 1, 2, or 3. If option 2, describe the preferred alternative approach.**
+
+---
+
+Present all CONDITIONAL PASS items together in a single message. Wait for the user's response before taking any further action.
+
+### After User Response
+
+| User Decision | Validator Action |
+|---------------|-----------------|
+| **Proceed as-is (1)** | Record decision in `docs/validation/` report; continue to Final Report generation |
+| **Re-implement (2)** | Pass the alternative approach to the Developer; restart the validation cycle after Developer delivers the fix |
+| **Defer (3)** | Mark feature as out-of-scope in Final Report; do not route back to Developer |
+
+If the user provides a mixed response (e.g., proceed on feature A, re-implement feature B), handle each feature independently according to its decision.
+
 ## Handoff
 
 - **FAIL (any feature):** Return issues to the Developer with the per-cycle `docs/validation/` report. Do not generate the Final Report until all FAILs are resolved.
-- **All PASS / CONDITIONAL PASS:** Generate the Final Report at `docs/report/YYYY-MM-DD.md`, commit and push it, then notify the user with the report path.
+- **CONDITIONAL PASS (any feature):** Consult the user as described above. Do not proceed until a decision is received for every CONDITIONAL PASS item.
+- **All PASS (or CONDITIONAL PASS resolved via user decision):** Generate the Final Report at `docs/report/YYYY-MM-DD.md`, commit and push it, then notify the user with the report path.
 
 ## Constraints
 

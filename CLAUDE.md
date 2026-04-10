@@ -22,6 +22,25 @@ All harness engineering work in this repository follows a three-agent workflow. 
 
 Refer to the individual `.agents/*.md` files for detailed inputs, outputs, constraints, and handoff rules for each role.
 
+## Git Commit on File Change (MANDATORY)
+
+**Every agent MUST commit and push all changed files to the remote git server immediately after any file is created or modified.**
+
+Rules:
+- Stage only the files changed by the current agent's action (do not use `git add -A` blindly)
+- Commit message format: `<type>(<agent>): <short description>` — e.g., `docs(planner): add eval plan for summarization task`
+- Allowed types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`
+- Always push to `origin main` after committing
+- Do not batch multiple unrelated changes into a single commit — one logical change = one commit
+- If the push fails, report the error immediately; do not silently skip
+
+Commit + push sequence every agent must follow:
+```bash
+git add <changed files>
+git commit -m "<type>(<agent>): <description>"
+git push origin main
+```
+
 ## Language (MANDATORY)
 
 All files created outside of `docs/conversation/` MUST be written in **English** — code, comments, documentation, configuration, and any other content.

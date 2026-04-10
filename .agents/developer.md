@@ -93,6 +93,59 @@ CMD ["bun", "run", "dist/index.js"]
 
 Adjust stages as needed for the specific harness architecture.
 
+## Validation Feedback Loop
+
+Before starting or resuming any implementation work, the Developer **must** check for the most recent Validator report:
+
+```
+docs/validation/YYYY-MM-DD-<topic>.md
+```
+
+If a validation report exists, apply the following process before writing any new code:
+
+### Step 1 — Read the Report
+
+Open the most recent `docs/validation/` file for the current topic and extract:
+- All items marked **FAIL** or **PARTIAL** in the acceptance criteria checklist
+- All issues with severity **critical**, **high**, or **medium**
+- Any noted deviations between the plan and the implementation
+
+### Step 2 — Triage and Fix
+
+For each issue found:
+
+| Severity | Required Action |
+|----------|----------------|
+| Critical | Fix immediately before any other work |
+| High | Fix in the current cycle |
+| Medium | Fix in the current cycle unless explicitly deferred with a reason |
+| Low | Document in implementation notes; fix at discretion |
+
+Do not close an issue by updating comments or docs alone — the underlying code or test must be corrected.
+
+### Step 3 — Re-verify Locally
+
+After fixes:
+1. Run `bun test` — all tests must pass
+2. Rebuild Docker image: `docker build -t harness-eng-test:<phase-tag>-fix .`
+3. Run `docker run --rm ...` to confirm the fix holds in the container
+
+### Step 4 — Update Implementation Notes
+
+Append a `### Fix Cycle — YYYY-MM-DD` section to the relevant `docs/harness/` file describing:
+- Which issues were addressed (reference severity + issue description)
+- What was changed and why
+- New Docker image tag used
+
+### Step 5 — Hand Back to Validator
+
+After fixes are committed and pushed, notify the **Validator** to re-review with:
+- The updated `docs/harness/` implementation notes
+- The new Docker image tag
+- A summary of changes made per issue
+
+**The Developer must not self-declare issues as resolved — only the Validator may issue a new verdict.**
+
 ## Handoff
 
 Once implementation is complete, unit tests pass, and the Docker image for the final phase is verified, hand off to the **Validator** with:

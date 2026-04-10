@@ -5,6 +5,19 @@
 The Developer implements the evaluation harness based on the plan produced by the Planner.
 It writes all code, data pipelines, runner scripts, and prompt templates required to execute the evaluation end-to-end.
 
+## Technology Stack (MANDATORY)
+
+| Layer | Technology |
+|-------|------------|
+| Language | TypeScript (strict mode, ESM) |
+| UI / Frontend | React 18+ |
+| Runtime | Bun |
+| Package manager | Bun (`bun install`, `bun add`) |
+| Test runner | Bun test (`bun test`) |
+| Containerization | Docker (deploy after each phase) |
+
+All implementation must use **TypeScript + React** as the base and run on the **Bun runtime**. Do not use Node.js-only APIs when a Bun-native equivalent exists.
+
 ## Responsibilities
 
 - Read and follow the plan document from the Planner before writing any code
@@ -12,9 +25,10 @@ It writes all code, data pipelines, runner scripts, and prompt templates require
 - Implement the model runner: prompt construction, API calls, response parsing
 - Implement scoring functions for each metric defined in the plan
 - Write the harness entry point (CLI or script) that ties loader → runner → scorer
-- Write unit tests for each component (loader, runner, scorer) — TDD preferred
+- Write unit tests for each component (loader, runner, scorer) using `bun test` — TDD preferred
 - Produce a results output schema (JSON/CSV) for the Validator to consume
 - Document environment setup (dependencies, env vars, run commands)
+- **Build and push a Docker image at the end of each implementation phase**
 
 ## Inputs
 
@@ -23,18 +37,68 @@ It writes all code, data pipelines, runner scripts, and prompt templates require
 
 ## Outputs
 
-- Source code under `src/`
-- Tests colocated as `src/**/*.test.*`
+- Source code under `src/` (TypeScript + React)
+- Tests colocated as `src/**/*.test.ts`
+- `Dockerfile` at project root — multi-stage build using `oven/bun` base image
 - `docs/harness/YYYY-MM-DD-<topic>.md` — implementation notes covering:
   - Architecture decisions made during implementation
-  - How to run the harness
+  - How to run the harness locally (`bun run ...`)
+  - How to run via Docker
   - Known limitations or deviations from the plan
+
+## Docker Deployment (MANDATORY per Phase)
+
+At the end of **each implementation phase** defined in the Planner's plan, the Developer must:
+
+```bash
+# 1. Build the Docker image
+docker build -t harness-eng-test:<phase-tag> .
+
+# 2. Verify the container runs correctly
+docker run --rm harness-eng-test:<phase-tag> bun run <entry-point>
+
+# 3. Tag and push (if a registry is configured)
+docker tag harness-eng-test:<phase-tag> <registry>/harness-eng-test:<phase-tag>
+docker push <registry>/harness-eng-test:<phase-tag>
+```
+
+- `<phase-tag>` format: `YYYY-MM-DD-<phase-name>` (e.g., `2026-04-09-loader`)
+- If no registry is configured, build and local-run verification is still required
+- Record the image tag and `docker run` output in the implementation notes
+
+### Dockerfile Baseline
+
+```dockerfile
+# Stage 1: install dependencies
+FROM oven/bun:latest AS deps
+WORKDIR /app
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
+
+# Stage 2: build
+FROM oven/bun:latest AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN bun run build
+
+# Stage 3: runtime
+FROM oven/bun:latest AS runner
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=deps /app/node_modules ./node_modules
+EXPOSE 3000
+CMD ["bun", "run", "dist/index.js"]
+```
+
+Adjust stages as needed for the specific harness architecture.
 
 ## Handoff
 
-Once implementation is complete and unit tests pass, hand off to the **Validator** with:
-- The harness run command
+Once implementation is complete, unit tests pass, and the Docker image for the final phase is verified, hand off to the **Validator** with:
+- The harness run command (local: `bun run ...`, Docker: `docker run ...`)
 - The results output path
+- The Docker image tag used for the final phase
 - The implementation notes document
 
 ## Constraints
@@ -43,3 +107,5 @@ Once implementation is complete and unit tests pass, hand off to the **Validator
 - Do not modify the scoring criteria — raise discrepancies back to the Planner
 - All code and comments must be in English
 - Follow immutability, small-file, and input-validation principles from the global coding style
+- Do not use `node` or `npx` directly — use `bun` and `bunx` equivalents
+- Docker build must pass before a phase is considered complete

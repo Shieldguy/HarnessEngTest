@@ -22,6 +22,48 @@ All harness engineering work in this repository follows a three-agent workflow. 
 
 Refer to the individual `.agents/*.md` files for detailed inputs, outputs, constraints, and handoff rules for each role.
 
+## Critical Constraints (STRICTLY FORBIDDEN)
+
+The following actions are strictly prohibited for all agents and Claude Code sessions in this project. Violations may cause irreversible damage to the repository, system, or infrastructure.
+
+### Git Constraints
+
+| Action | Forbidden Command(s) | Reason |
+|--------|----------------------|--------|
+| Delete any branch | `git branch -d`, `git branch -D`, `git push origin --delete` | Permanent loss of history |
+| Create new branches | `git checkout -b`, `git branch <name>`, `git switch -c` | Only `main` is used in this project |
+| Force push | `git push --force`, `git push -f` | Overwrites remote history irreversibly |
+| Hard reset | `git reset --hard` | Discards uncommitted work permanently |
+| Amend published commits | `git commit --amend` after push | Rewrites shared history |
+| Drop stash entries | `git stash drop`, `git stash clear` | May discard in-progress work |
+| Delete `.git` directory | `rm -rf .git` | Destroys entire repository |
+| Skip pre-commit hooks | `git commit --no-verify` | Bypasses safety checks |
+
+**Only `main` branch exists. Never create, rename, or delete branches.**
+
+### File System Constraints
+
+| Action | Forbidden | Reason |
+|--------|-----------|--------|
+| Recursive delete outside project | `rm -rf` on any path outside `/Volumes/wjkim/Workspaces/AIProjects/HarnessEngTest/` | Risk of destroying unrelated work or system files |
+| Delete project root | `rm -rf .` or `rm -rf /path/to/HarnessEngTest` | Destroys entire project |
+| Overwrite system files | Writing to `/etc/`, `/usr/`, `/bin/`, `/sbin/`, `~/.ssh/` | System integrity risk |
+| Mass delete without confirmation | `find . -delete`, `rm -rf *` inside project | Irreversible bulk deletion |
+
+### Process & System Constraints
+
+| Action | Forbidden | Reason |
+|--------|-----------|--------|
+| Kill unrelated processes | `kill -9`, `pkill` on non-project processes | May terminate critical system services |
+| Modify global environment | Editing `~/.bashrc`, `~/.zshrc`, `~/.profile` without explicit request | Affects all sessions permanently |
+| Install global packages | `npm install -g`, `pip install` without explicit request | May break other projects |
+| Change file permissions broadly | `chmod -R 777` | Security risk |
+| Expose secrets | Committing `.env`, API keys, tokens, passwords | Permanent exposure once pushed |
+
+### If in Doubt
+
+**Stop. Ask the user before proceeding.** Destructive actions cannot be undone.
+
 ## Git Commit on File Change (MANDATORY)
 
 **Every agent MUST commit and push all changed files to the remote git server immediately after any file is created or modified.**

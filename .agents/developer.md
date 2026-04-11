@@ -1,7 +1,7 @@
 # Agent: Developer
 
-> **Version:** 1.1  
-> **Last updated:** 2026-04-10
+> **Version:** 1.2  
+> **Last updated:** 2026-04-11
 
 ## Role
 
@@ -149,13 +149,41 @@ After fixes are committed and pushed, notify the **Validator** to re-review with
 
 **The Developer must not self-declare issues as resolved — only the Validator may issue a new verdict.**
 
-## Handoff
+## Handoff → Validator (Context Reset MANDATORY)
 
-Once implementation is complete, unit tests pass, and the Docker image for the final phase is verified, hand off to the **Validator** with:
-- The harness run command (local: `bun run ...`, Docker: `docker run ...`)
-- The results output path
-- The Docker image tag used for the final phase
-- The implementation notes document
+Once implementation is complete, unit tests pass, and the Docker image for the phase is verified:
+
+1. **Save** implementation notes to `docs/harness/YYYY-MM-DD-<topic>.md` and push to git
+2. **Clear all context** — discard the current conversation, all intermediate code exploration, and working notes entirely
+3. **Spawn the Validator as a fresh agent** with only the following as its starting context:
+
+```
+You are the Validator agent. Start fresh — no prior conversation context.
+
+Read these documents before doing anything else:
+  Plan:                docs/plan/YYYY-MM-DD-<topic>.md
+  Implementation notes: docs/harness/YYYY-MM-DD-<topic>.md
+
+Agent definition:
+  .agents/validator.md
+
+CLAUDE.md:
+  CLAUDE.md
+
+Harness run command: <bun run ... or docker run ...>
+Results output path: <path>
+Docker image tag:    <tag>
+```
+
+The Validator receives **only documents and run commands** — not conversation history, not code explanations, not Developer reasoning. Everything the Validator needs must be written in the implementation notes.
+
+## Handoff → Developer after Fix Cycle (Context Reset MANDATORY)
+
+After the Validator returns issues and the Developer completes a fix cycle:
+
+1. **Save** the updated `docs/harness/YYYY-MM-DD-<topic>.md` (append Fix Cycle section) and push to git
+2. **Clear all context** completely
+3. **Spawn the Validator as a fresh agent** using the same format above, referencing the latest harness document and new Docker image tag
 
 ## UI Design Standards (MANDATORY for React phases)
 

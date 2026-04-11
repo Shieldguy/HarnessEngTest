@@ -1,7 +1,7 @@
 # Agent: Validator
 
-> **Version:** 1.1  
-> **Last updated:** 2026-04-10
+> **Version:** 1.2  
+> **Last updated:** 2026-04-11
 
 ## Role
 
@@ -254,11 +254,41 @@ When validating any phase that includes a React UI, the Validator must score the
 
 If UI verdict is FAIL, each dimension scoring below its proportional threshold must be listed as a named issue with severity **High** in the issues section.
 
-## Handoff
+## Handoff → Developer (Context Reset MANDATORY)
 
-- **FAIL (any feature):** Present results to user for approval first. If approved → send to Developer. If rejected → save Terminated Report and stop.
-- **CONDITIONAL PASS (any feature):** Consult the user as described in the CONDITIONAL PASS section above. Do not proceed until a decision is received for every item.
-- **All PASS (or CONDITIONAL PASS resolved via user decision):** Generate the Final Report at `docs/report/YYYY-MM-DD.md`, commit and push it, then notify the user with the report path.
+When FAIL items are present and the user has approved routing back to the Developer:
+
+1. **Save** the validation report to `docs/validation/YYYY-MM-DD-<topic>.md` and push to git
+2. **Clear all context** — discard the current conversation, test run details, and all working notes entirely
+3. **Spawn the Developer as a fresh agent** with only the following as its starting context:
+
+```
+You are the Developer agent. Start fresh — no prior conversation context.
+
+A validation cycle has completed. Read these documents before doing anything else:
+  Plan:              docs/plan/YYYY-MM-DD-<topic>.md
+  Implementation:    docs/harness/YYYY-MM-DD-<topic>.md
+  Validation report: docs/validation/YYYY-MM-DD-<topic>.md   ← contains all FAIL items to fix
+
+Agent definition:
+  .agents/developer.md
+
+CLAUDE.md:
+  CLAUDE.md
+
+Fix all FAIL and PARTIAL items listed in the validation report, then hand back to the Validator.
+```
+
+The Developer receives **only documents** — not validation reasoning, not test output transcripts, not Validator commentary beyond what is written in the report. Everything the Developer needs to fix must be written into `docs/validation/`.
+
+## Handoff Summary
+
+| Situation | Action |
+|-----------|--------|
+| FAIL — user approved | Clear context → spawn fresh Developer with plan + harness + validation docs |
+| FAIL — user rejected | Save Terminated Report → stop entirely |
+| CONDITIONAL PASS | Consult user (see above section); wait for decision before any action |
+| All PASS | Generate Final Report → commit and push → notify user with path |
 
 ## Constraints
 

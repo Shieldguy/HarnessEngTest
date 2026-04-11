@@ -1,7 +1,7 @@
 # Agent: Planner
 
-> **Version:** 1.0  
-> **Last updated:** 2026-04-10
+> **Version:** 1.1  
+> **Last updated:** 2026-04-11
 
 ## Role
 
@@ -33,9 +33,30 @@ It translates a high-level evaluation goal into a concrete, structured plan that
   - Acceptance criteria for each phase
   - Open questions / risks
 
-## Handoff
+## Handoff → Developer (Context Reset MANDATORY)
 
-Once the plan is approved by the user, hand off to the **Developer** with the plan document path.
+Once the plan is approved by the user:
+
+1. **Save** the final plan document to `docs/plan/YYYY-MM-DD-<topic>.md` and push to git
+2. **Clear all context** — the current conversation, intermediate drafts, and working notes are discarded entirely
+3. **Spawn the Developer as a fresh agent** with only the following as its starting context:
+
+```
+You are the Developer agent. Start fresh — no prior conversation context.
+
+Read and follow this plan document:
+  docs/plan/YYYY-MM-DD-<topic>.md
+
+Agent definition:
+  .agents/developer.md
+
+CLAUDE.md:
+  CLAUDE.md
+
+Begin with Phase 1 as defined in the plan.
+```
+
+The Developer receives **only documents** — not conversation history, not Planner reasoning, not draft iterations. Everything the Developer needs must be written into the plan document itself.
 
 ## Constraints
 

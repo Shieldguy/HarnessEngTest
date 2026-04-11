@@ -1,12 +1,13 @@
 # Planner: Powerball Number Predictor
 
-> **Version:** 1.2  
+> **Version:** 1.3  
 > **Date:** 2026-04-10  
 > **Status:** Pending User Approval  
 > **Agent:** Planner  
 > **Changelog:**  
 > - v1.1 — Pre-2015 Powerball handling: include draws but exclude Powerball numbers 27–35 from statistics  
-> - v1.2 — Dashboard Update button: incremental scrape + re-analysis via Bun API server; architecture changed from static to full-stack
+> - v1.2 — Dashboard Update button: incremental scrape + re-analysis via Bun API server; architecture changed from static to full-stack  
+> - v1.3 — Recommendations view: Generate button with ball-drop animation (one ball at a time)
 
 ---
 
@@ -230,7 +231,7 @@ type RefreshResponse = {
 |------|---------|
 | **Dashboard** | Summary cards + **Update button** |
 | **Statistics** | Frequency bar chart for white balls and Powerball; hot/cold highlights |
-| **Recommendations** | Strategy selector + recommended numbers displayed as lottery balls |
+| **Recommendations** | Strategy selector + **Generate button** + ball-drop animation |
 | **History** | Paginated table of all draw records |
 
 **Dashboard — Update Button spec:**
@@ -254,6 +255,52 @@ type RefreshResponse = {
 - After a successful update, all views (Statistics, Recommendations, History) **re-render with the new data** without a full page reload
 - State management: React context or prop-drilling from root state is acceptable for v1
 
+**Recommendations View — Generate Button & Ball-Drop Animation spec:**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Strategy: [ Hot ▾ ]                                          │
+│                                                               │
+│  [ Generate ]  ← triggers animation sequence                  │
+│                                                               │
+│  Ball tray (6 slots):                                         │
+│                                                               │
+│   ①   ②   ③   ④   ⑤      🔴         │
+│  (white balls — 5)        (Powerball)  │
+│                                                               │
+│  Rationale:                                                    │
+│  • Ball 12 — appeared 87 times (most frequent)                │
+│  • ...                                                         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Animation sequence (on Generate click):**
+
+1. Clear any previously shown balls — all 6 slots go blank instantly
+2. Balls drop in one at a time, left to right:
+   - Each ball starts **above** its slot (off-screen or from the top of the tray)
+   - It **falls down** into its slot with a short bounce easing (ease-in + slight bounce at landing)
+   - Interval between each ball drop: **400 ms**
+   - Total sequence for 5 white balls + 1 Powerball: ~2.4 seconds
+3. White balls are styled with a **white/light background** and dark number
+4. The Powerball slot drops last and is styled with a **red background** and white number
+5. While animation is running, the **Generate button is disabled** (prevent re-trigger mid-sequence)
+6. The rationale list fades in **after all 6 balls have landed**
+
+**Animation implementation notes (for Developer):**
+- Use CSS `@keyframes` with `transform: translateY()` — no animation library required
+- Ball drop keyframe example:
+  ```css
+  @keyframes ball-drop {
+    0%   { transform: translateY(-120px); opacity: 0; }
+    60%  { transform: translateY(8px);   opacity: 1; }
+    80%  { transform: translateY(-4px); }
+    100% { transform: translateY(0px); }
+  }
+  ```
+- Stagger timing via inline `style={{ animationDelay: `${index * 400}ms` }}`
+- `animation-fill-mode: both` to keep balls hidden before their drop begins
+
 **Technical requirements:**
 - React 18+ with TypeScript
 - No external CSS framework required (inline styles or CSS modules acceptable)
@@ -267,7 +314,13 @@ type RefreshResponse = {
 - [ ] After successful refresh, all views update with new data without page reload
 - [ ] Update button is disabled during in-progress refresh
 - [ ] User sees a clear success / up-to-date / error message after each Update action
-- [ ] Recommendations update when user changes strategy selection
+- [ ] **Generate button triggers ball-drop animation** — 6 balls drop one at a time, 400 ms apart
+- [ ] Balls clear instantly before each new generation sequence
+- [ ] White balls styled with light background; Powerball styled with red background
+- [ ] Generate button is disabled while animation is in progress
+- [ ] Rationale list appears only after all 6 balls have landed
+- [ ] Animation uses CSS keyframes only (no external animation library)
+- [ ] Changing strategy and clicking Generate shows a new animation sequence
 - [ ] History table is paginated (20 rows per page minimum)
 - [ ] App builds successfully with `bun run build`
 

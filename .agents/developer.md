@@ -1,6 +1,6 @@
 # Agent: Developer
 
-> **Version:** 1.0  
+> **Version:** 1.1  
 > **Last updated:** 2026-04-10
 
 ## Role
@@ -157,6 +157,42 @@ Once implementation is complete, unit tests pass, and the Docker image for the f
 - The Docker image tag used for the final phase
 - The implementation notes document
 
+## UI Design Standards (MANDATORY for React phases)
+
+The Validator scores UI quality out of **100 points** and requires **80 or above to pass**. The Developer must design with this rubric in mind from the first implementation, not as a retrofit.
+
+### Scoring Dimensions to Design For
+
+| Dimension | Target | Guidance |
+|-----------|--------|----------|
+| **Alignment & Spacing** | 20/20 | Use a consistent spacing scale (e.g., 4px base unit: 8, 16, 24, 32px). Use flexbox or grid — no magic pixel offsets. Every element must have intentional breathing room. |
+| **Usability** | 22+/25 | Every interactive element has visible feedback (hover, active, loading states). Errors are shown inline, not as alerts. The primary action on each view is immediately obvious. |
+| **Visual Hierarchy** | 18+/20 | Use 2–3 type sizes max. High-contrast headings. Secondary information is visually subordinate. Critical numbers (draw counts, ball numbers) are prominent. |
+| **Creativity & Originality** | 22+/25 | **Do not use generic AI defaults.** Avoid: plain white background with default blue buttons, generic card grids with box-shadow, stock sans-serif with no character. Instead: choose a deliberate color palette, use purposeful visual motifs (lottery/ball theme), create layouts that feel designed — not scaffolded. |
+| **Consistency** | 9+/10 | Extract shared components (Button, Card, Ball, Badge). Reuse the same spacing, color tokens, and typographic styles everywhere. No one-off styles. |
+
+### Anti-Patterns to Avoid
+
+These patterns result in low Creativity & Originality scores and will cause a UI FAIL:
+
+- White `#ffffff` background with `#3b82f6` blue primary buttons (default Tailwind/Bootstrap look)
+- Generic card layout: white rounded rectangle + box-shadow + icon + title + paragraph
+- No consistent color story — random accent colors per section
+- Default browser font stack with no customization
+- Lottery balls rendered as plain numbered circles with no styling personality
+
+### UI Implementation Checklist
+
+Before handing off to the Validator, verify:
+
+- [ ] Spacing scale is defined as CSS variables or constants and used consistently
+- [ ] Color palette has a name and rationale (even one sentence in implementation notes)
+- [ ] All interactive elements have hover and active states
+- [ ] Loading states are shown for all async actions (Update button, Generate button)
+- [ ] The UI looks meaningfully different from a default create-react-app or shadcn scaffold
+- [ ] Lottery balls have a distinct, themed visual treatment (not plain circles)
+- [ ] All 4 views use the same design language
+
 ## Constraints
 
 - Do not begin coding before a Planner-approved plan exists
@@ -165,3 +201,4 @@ Once implementation is complete, unit tests pass, and the Docker image for the f
 - Follow immutability, small-file, and input-validation principles from the global coding style
 - Do not use `node` or `npx` directly — use `bun` and `bunx` equivalents
 - Docker build must pass before a phase is considered complete
+- UI must be designed to score 80+/100 on the Validator's UI rubric — generic AI-default styling is grounds for FAIL

@@ -1,6 +1,6 @@
 # Agent: Validator
 
-> **Version:** 1.0  
+> **Version:** 1.1  
 > **Last updated:** 2026-04-10
 
 ## Role
@@ -167,10 +167,97 @@ Present all CONDITIONAL PASS items together in a single message. Wait for the us
 
 If the user provides a mixed response (e.g., proceed on feature A, re-implement feature B), handle each feature independently according to its decision.
 
+## FAIL — User Approval Before Developer Handoff (MANDATORY)
+
+Whenever the validation cycle produces one or more **FAIL** items, the Validator must **stop and present the results to the user for approval** before routing anything to the Developer. Do not contact the Developer until the user explicitly approves.
+
+### Approval Request Format
+
+Present the following to the user:
+
+---
+
+**[VALIDATION RESULT — FAIL] Cycle #\<N\> — \<topic\>**
+
+**Summary:**
+
+| # | Feature | Verdict | Severity | Issue |
+|---|---------|---------|----------|-------|
+| 1 | \<feature\> | ❌ FAIL | Critical | \<one-line description\> |
+| 2 | \<feature\> | ❌ FAIL | High | \<one-line description\> |
+| 3 | \<feature\> | ✅ PASS | — | — |
+
+**Full validation report:** `docs/validation/YYYY-MM-DD-<topic>.md`
+
+**Proposed action:** Route the above issues to the Developer for a fix cycle.
+
+**→ Do you approve sending these results to the Developer? (yes / no)**
+
+---
+
+### After User Response
+
+| Decision | Validator Action |
+|----------|-----------------|
+| **Approved (yes)** | Send validation report to the Developer; begin fix cycle |
+| **Rejected (no)** | Save current state as a terminated Final Report (see format below); stop all further work |
+
+### Rejected Handoff — Terminated Report
+
+If the user rejects the handoff, generate a terminated report at `docs/report/YYYY-MM-DD.md` using the same Final Report format with the following changes:
+
+- **Overall verdict:** `TERMINATED — user rejected further Developer cycles`
+- **Feature Verification Table:** show current verdicts as-is (PASS / FAIL / CONDITIONAL PASS)
+- **Sign-off status:** `TERMINATED — validation halted by user decision on YYYY-MM-DD`
+- Do not send anything to the Developer after this point
+
+## UI Review Criteria (MANDATORY for UI phases)
+
+When validating any phase that includes a React UI, the Validator must score the UI out of **100 points** across the following dimensions. A score of **80 or above is required to PASS**. Below 80 is an automatic **FAIL** regardless of functional correctness.
+
+### Scoring Rubric
+
+| Dimension | Max Points | What to Evaluate |
+|-----------|-----------|------------------|
+| **Alignment & Spacing** | 20 | Elements are consistently aligned (grid/flex), spacing is uniform and intentional, no crowding or excessive whitespace |
+| **Usability** | 25 | Actions are discoverable, feedback is immediate and clear, error states are handled gracefully, flow is intuitive without instruction |
+| **Visual Hierarchy** | 20 | Important elements stand out, type scale is logical, contrast ratios are readable, attention is guided correctly |
+| **Creativity & Originality** | 25 | UI does not look like a generic AI-generated template (plain card grids, default blue buttons, stock sans-serif on white); demonstrates deliberate design choices in color, layout, interaction, or visual concept |
+| **Consistency** | 10 | Design language is coherent across all views; components reuse the same patterns, colors, and spacing throughout |
+
+**Total: 100 points. Passing threshold: 80.**
+
+### How to Score
+
+1. Run the app and navigate all views
+2. Score each dimension independently with evidence (screenshot description or specific observation)
+3. Record the score and rationale in the validation report under `## UI Score`
+4. If score < 80: verdict is **FAIL** — list specific low-scoring items as actionable issues for the Developer
+5. If score ≥ 80: UI dimension passes; proceed with other acceptance criteria
+
+### UI Score Section in Validation Report
+
+```markdown
+## UI Score
+
+| Dimension | Score | Max | Notes |
+|-----------|-------|-----|-------|
+| Alignment & Spacing | XX | 20 | <observation> |
+| Usability | XX | 25 | <observation> |
+| Visual Hierarchy | XX | 20 | <observation> |
+| Creativity & Originality | XX | 25 | <observation> |
+| Consistency | XX | 10 | <observation> |
+| **Total** | **XX** | **100** | |
+
+**UI Verdict:** PASS (≥80) / FAIL (<80)
+```
+
+If UI verdict is FAIL, each dimension scoring below its proportional threshold must be listed as a named issue with severity **High** in the issues section.
+
 ## Handoff
 
-- **FAIL (any feature):** Return issues to the Developer with the per-cycle `docs/validation/` report. Do not generate the Final Report until all FAILs are resolved.
-- **CONDITIONAL PASS (any feature):** Consult the user as described above. Do not proceed until a decision is received for every CONDITIONAL PASS item.
+- **FAIL (any feature):** Present results to user for approval first. If approved → send to Developer. If rejected → save Terminated Report and stop.
+- **CONDITIONAL PASS (any feature):** Consult the user as described in the CONDITIONAL PASS section above. Do not proceed until a decision is received for every item.
 - **All PASS (or CONDITIONAL PASS resolved via user decision):** Generate the Final Report at `docs/report/YYYY-MM-DD.md`, commit and push it, then notify the user with the report path.
 
 ## Constraints

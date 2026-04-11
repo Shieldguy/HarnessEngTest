@@ -1,20 +1,23 @@
 # Planner: Powerball Number Predictor
 
-> **Version:** 1.1  
+> **Version:** 1.2  
 > **Date:** 2026-04-10  
 > **Status:** Pending User Approval  
 > **Agent:** Planner  
-> **Changelog:** v1.1 — Pre-2015 Powerball handling: include draws but exclude Powerball numbers 27–35 from statistics
+> **Changelog:**  
+> - v1.1 — Pre-2015 Powerball handling: include draws but exclude Powerball numbers 27–35 from statistics  
+> - v1.2 — Dashboard Update button: incremental scrape + re-analysis via Bun API server; architecture changed from static to full-stack
 
 ---
 
 ## Objective
 
-Build a web application that:
+Build a full-stack web application that:
 1. Scrapes Texas Powerball winning numbers from 2010 to the present
 2. Computes frequency statistics for white balls (1–69) and Powerballs (1–26)
 3. Applies statistical strategies to predict and recommend the next draw's numbers
 4. Presents results through a React web UI
+5. Allows on-demand incremental data refresh via a Dashboard Update button (no full re-scrape)
 
 **Source data:** https://www.texaslottery.com/export/sites/lottery/Games/Powerball/Winning_Numbers/
 
@@ -52,6 +55,31 @@ powerball: 14
 ```
 
 The `StatsFile` will include a `powerball_eligible_draw_count` field to reflect the number of draws actually used for Powerball statistics.
+
+---
+
+## Architecture Overview
+
+This is a **full-stack application** served by a single Bun HTTP server:
+
+```
+Browser (React)
+    │
+    │  HTTP (port 3000)
+    ▼
+Bun HTTP Server (src/server/)
+    ├── GET  /                    → serve React app (static build)
+    ├── GET  /api/stats           → return data/stats.json
+    ├── GET  /api/draws           → return data/draws.json
+    └── POST /api/refresh         → incremental scrape → re-analyze → return new stats
+         │
+         ├── src/scraper/         fetch only new draws (since last cached date)
+         ├── src/analyzer/        recompute stats over full dataset
+         └── data/                persist updated draws.json and stats.json
+```
+
+The React frontend calls `/api/refresh` when the user clicks **Update** on the Dashboard.
+All other views read from `/api/stats` and `/api/draws` on initial load.
 
 ---
 
@@ -150,35 +178,102 @@ type Recommendation = {
 
 ---
 
-### Phase 4 — React UI (Frontend)
+### Phase 4 — Bun API Server
 
-**Goal:** Present statistics and recommendations in a browser via a React web app.
+**Goal:** Expose a lightweight HTTP server that serves the React app and provides API endpoints for data access and incremental refresh.
+
+**Endpoints:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Serve the built React app (`dist/index.html`) |
+| `GET` | `/api/stats` | Return `data/stats.json` as JSON |
+| `GET` | `/api/draws` | Return `data/draws.json` as JSON |
+| `POST` | `/api/refresh` | Incremental scrape + re-analyze; return updated stats |
+
+**`POST /api/refresh` behavior:**
+1. Read `data/draws.json` to find the latest cached draw date
+2. Scrape the Texas Lottery site for draws **newer than that date only**
+3. Append new records to `data/draws.json`
+4. Recompute all statistics and overwrite `data/stats.json`
+5. Return the updated `StatsFile` as the response body
+6. If no new draws are found, return `{ updated: false, message: "Already up to date" }`
+
+**Response schema for `/api/refresh`:**
+```ts
+type RefreshResponse = {
+  updated: boolean
+  new_draw_count: number    // number of newly fetched draws (0 if up to date)
+  message: string
+  stats: StatsFile          // full updated stats (or current stats if no update)
+}
+```
+
+**Acceptance Criteria:**
+- [ ] `GET /api/stats` returns valid `StatsFile` JSON
+- [ ] `GET /api/draws` returns valid `DrawsFile` JSON
+- [ ] `POST /api/refresh` fetches only draws newer than the latest cached date
+- [ ] `POST /api/refresh` returns `updated: false` when no new draws exist
+- [ ] `POST /api/refresh` updates both `data/draws.json` and `data/stats.json` on disk
+- [ ] Server handles concurrent requests without corrupting data files (write lock or sequential refresh)
+- [ ] All endpoints return appropriate HTTP status codes and `Content-Type: application/json`
+
+---
+
+### Phase 5 — React UI (Frontend)
+
+**Goal:** Present statistics and recommendations in a browser via a React web app, with live data refresh.
 
 **Pages / Views:**
 
 | View | Content |
 |------|---------|
-| **Dashboard** | Total draws analyzed, date range, last updated |
+| **Dashboard** | Summary cards + **Update button** |
 | **Statistics** | Frequency bar chart for white balls and Powerball; hot/cold highlights |
 | **Recommendations** | Strategy selector + recommended numbers displayed as lottery balls |
 | **History** | Paginated table of all draw records |
 
+**Dashboard — Update Button spec:**
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Total draws: 1,842       Last draw: 2026-04-08      │
+│  Date range: 2010-01-09 – 2026-04-08                 │
+│  PB-eligible draws: 1,523  Last updated: 2026-04-09  │
+│                                                       │
+│  [ Update ]  ← calls POST /api/refresh               │
+│                                                       │
+│  (while loading) spinner + "Fetching latest data…"   │
+│  (on success)   "3 new draws added. Stats updated."  │
+│  (up to date)   "Already up to date."                │
+│  (on error)     "Update failed. Try again."          │
+└─────────────────────────────────────────────────────┘
+```
+
+- Button is **disabled** while a refresh is in progress (prevent double-submit)
+- After a successful update, all views (Statistics, Recommendations, History) **re-render with the new data** without a full page reload
+- State management: React context or prop-drilling from root state is acceptable for v1
+
 **Technical requirements:**
 - React 18+ with TypeScript
 - No external CSS framework required (inline styles or CSS modules acceptable)
-- Data loaded from static `data/stats.json` and `data/draws.json` at build time (no runtime API calls required for v1)
+- All data fetched from Bun API server at runtime (`/api/stats`, `/api/draws`, `/api/refresh`)
 - Responsive layout (desktop-first, mobile readable)
 
 **Acceptance Criteria:**
-- [ ] All 4 views render without runtime errors
-- [ ] Statistics view shows correct frequency values matching `data/stats.json`
+- [ ] All 4 views render without runtime errors on initial load
+- [ ] Dashboard shows correct summary values from `/api/stats`
+- [ ] **Update button calls `POST /api/refresh`** and shows loading state while waiting
+- [ ] After successful refresh, all views update with new data without page reload
+- [ ] Update button is disabled during in-progress refresh
+- [ ] User sees a clear success / up-to-date / error message after each Update action
 - [ ] Recommendations update when user changes strategy selection
 - [ ] History table is paginated (20 rows per page minimum)
 - [ ] App builds successfully with `bun run build`
 
 ---
 
-### Phase 5 — Docker Packaging
+### Phase 6 — Docker Packaging
 
 **Goal:** Package the complete app into a Docker image using the `oven/bun` base.
 
@@ -238,8 +333,9 @@ type StatsFile = {
 - [ ] Phase 1: `data/draws.json` with 2010–present draws
 - [ ] Phase 2: `data/stats.json` with full statistics
 - [ ] Phase 3: 4 prediction strategies returning valid recommendations
-- [ ] Phase 4: React UI with all 4 views functional
-- [ ] Phase 5: Docker image running on port 3000
+- [ ] Phase 4: Bun API server with `/api/stats`, `/api/draws`, `/api/refresh`
+- [ ] Phase 5: React UI with all 4 views + Update button functional
+- [ ] Phase 6: Docker image running on port 3000
 - [ ] `docs/harness/2026-04-10-powerball-predictor.md` with run instructions
 
 ---

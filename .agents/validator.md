@@ -1,5 +1,8 @@
 # Agent: Validator
 
+> **Version:** 1.0  
+> **Last updated:** 2026-04-10
+
 ## Role
 
 The Validator verifies the correctness and completeness of the evaluation harness and its results.

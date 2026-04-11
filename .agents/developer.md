@@ -1,5 +1,8 @@
 # Agent: Developer
 
+> **Version:** 1.0  
+> **Last updated:** 2026-04-10
+
 ## Role
 
 The Developer implements the evaluation harness based on the plan produced by the Planner.

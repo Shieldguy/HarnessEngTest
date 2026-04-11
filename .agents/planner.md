@@ -1,5 +1,8 @@
 # Agent: Planner
 
+> **Version:** 1.0  
+> **Last updated:** 2026-04-10
+
 ## Role
 
 The Planner is responsible for designing the evaluation harness before any implementation begins.

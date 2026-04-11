@@ -1,9 +1,10 @@
 # Planner: Powerball Number Predictor
 
-> **Version:** 1.0  
+> **Version:** 1.1  
 > **Date:** 2026-04-10  
 > **Status:** Pending User Approval  
-> **Agent:** Planner
+> **Agent:** Planner  
+> **Changelog:** v1.1 — Pre-2015 Powerball handling: include draws but exclude Powerball numbers 27–35 from statistics
 
 ---
 
@@ -28,6 +29,30 @@ Build a web application that:
 
 Draws occur every Monday, Wednesday, and Saturday.
 
+### Historical Rule Change — Powerball Range
+
+On **October 7, 2015**, the Powerball number range changed from 1–35 to 1–26.
+
+**Policy (user decision):**
+- All draws from 2010-01-01 to present are **collected and stored** in `data/draws.json` regardless of era
+- For **Powerball statistics**, only draws where the Powerball number is in range **1–26** are counted
+- Draws with a Powerball number of **27–35** (pre-Oct 2015) are **excluded from Powerball frequency statistics** but their **white ball data is still included** in white ball statistics
+- No draw record is deleted — exclusion applies only at the analysis layer
+
+```
+DrawRecord (stored)          Powerball stat inclusion
+─────────────────────────    ──────────────────────────────────────
+date: 2014-05-03             whiteBalls → included in white ball stats
+whiteBalls: [4,12,35,51,68]  powerball (32) → EXCLUDED (out of 1–26 range)
+powerball: 32
+
+date: 2017-08-12             whiteBalls → included in white ball stats
+whiteBalls: [7,19,22,44,60]  powerball (14) → INCLUDED
+powerball: 14
+```
+
+The `StatsFile` will include a `powerball_eligible_draw_count` field to reflect the number of draws actually used for Powerball statistics.
+
 ---
 
 ## Implementation Phases
@@ -42,19 +67,22 @@ Draws occur every Monday, Wednesday, and Saturday.
 - Parse each draw record into a normalized structure:
   ```ts
   type DrawRecord = {
-    date: string        // ISO 8601 (YYYY-MM-DD)
+    date: string         // ISO 8601 (YYYY-MM-DD)
     whiteBalls: number[] // sorted, 5 numbers, range 1–69
-    powerball: number   // range 1–26
-    multiplier?: number // Power Play multiplier if present
+    powerball: number    // historical range: 1–35 (pre-2015) or 1–26 (2015–present)
+    multiplier?: number  // Power Play multiplier if present
+    powerballEligible: boolean // true if powerball is in range 1–26
   }
   ```
 - Persist results to `data/draws.json` as the local cache
 - Implement incremental refresh: only fetch draws newer than the latest cached date
+- Set `powerballEligible: true` when `powerball <= 26`, `false` when `powerball >= 27`
 
 **Acceptance Criteria:**
 - [ ] All draws from 2010-01-01 to current date are collected
 - [ ] No duplicate draw records
-- [ ] Each record passes schema validation (date, 5 white balls in range, 1 Powerball in range)
+- [ ] Each record has correct `powerballEligible` flag (true if powerball ≤ 26)
+- [ ] White ball values are always in range 1–69 for all draws
 - [ ] Incremental refresh runs without re-fetching already cached data
 
 ---
@@ -77,13 +105,15 @@ Draws occur every Monday, Wednesday, and Saturday.
   | `hot` | Appeared in the last 10 draws |
   | `cold` | Not appeared in the last 30 draws |
 
-  **Powerball statistics (per number 1–26):** same metrics as above.
+  **Powerball statistics (per number 1–26):** same metrics as above, computed only over draws where `powerballEligible === true`. Powerball numbers 27–35 are never included.
 
 - Persist output to `data/stats.json`
 
 **Acceptance Criteria:**
-- [ ] Statistics computed for all 69 white ball numbers and all 26 Powerball numbers
-- [ ] `frequency_pct` sums to approximately 500/69 × 100% per draw for white balls (expected rate)
+- [ ] White ball statistics computed from **all draws** (2010–present)
+- [ ] Powerball statistics computed only from draws where `powerballEligible === true` (powerball ≤ 26)
+- [ ] No Powerball number outside range 1–26 appears in `stats.json`
+- [ ] `stats.json` includes `powerball_eligible_draw_count` (draws used for Powerball stats)
 - [ ] `hot` and `cold` flags are mutually exclusive per number
 - [ ] Output passes schema validation
 
@@ -181,9 +211,10 @@ type DrawsFile = {
 ```ts
 type StatsFile = {
   computed_at: string
-  draw_count: number
-  white_balls: Record<string, WhiteBallStat>   // keys "1"–"69"
-  powerballs: Record<string, PowerballStat>    // keys "1"–"26"
+  draw_count: number                    // total draws (all eras)
+  powerball_eligible_draw_count: number // draws where powerball is in 1–26
+  white_balls: Record<string, WhiteBallStat>   // keys "1"–"69", all draws
+  powerballs: Record<string, PowerballStat>    // keys "1"–"26", eligible draws only
 }
 ```
 
@@ -195,10 +226,10 @@ type StatsFile = {
 |---|----------|------|-------|
 | 1 | Does the Texas Lottery site allow scraping? Check `robots.txt` and rate-limit appropriately | Medium | Developer |
 | 2 | Does the site structure change for older data (pre-2012 Powerball rule changes)? | Medium | Developer |
-| 3 | Powerball range changed from 1–35 to 1–26 in October 2015. Pre-change data should be excluded or flagged | High | Developer |
+| 3 | ~~Powerball range changed from 1–35 to 1–26 in October 2015~~ — **RESOLVED** | — | — |
 | 4 | Site may require JavaScript rendering — if `fetch` alone is insufficient, use a headless approach | Medium | Developer |
 
-> **Note on Risk #3:** The Powerball number range changed on October 7, 2015. Data before this date uses a different range (1–35) and should be treated as a separate dataset or excluded from the 1–26 statistics to avoid skew. The Developer must handle this explicitly.
+> **Resolution on Risk #3:** Pre-2015 draws are **retained** in `data/draws.json`. Powerball numbers 27–35 are filtered out at the analysis layer via the `powerballEligible` flag. White ball data from all draws (including pre-2015) contributes to white ball statistics. Only Powerball numbers 1–26 are counted in Powerball statistics.
 
 ---
 

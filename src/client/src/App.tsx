@@ -26,6 +26,8 @@ export default function App(): React.ReactElement {
 
   function handleUpdate(newStats: StatsFile): void {
     setLiveStats(newStats)
+    // Re-fetch draws so History view shows newly added draw records
+    void drawsApi.refetch()
   }
 
   const isLoading = statsApi.loading || drawsApi.loading

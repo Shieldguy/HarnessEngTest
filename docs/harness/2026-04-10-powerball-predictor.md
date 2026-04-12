@@ -185,3 +185,31 @@ curl http://localhost:3000/api/draws | jq '{draw_count, first: .draws[0].date, l
 # Refresh API
 curl -X POST http://localhost:3000/api/refresh | jq '{updated, new_draw_count, message}'
 ```
+
+---
+
+### Fix Cycle — 2026-04-11
+
+**Issue addressed:** CONDITIONAL PASS — History view not updated after `POST /api/refresh`
+
+The validator identified that after a successful data refresh, the History view continued to display stale draw records because `draws` state was never re-fetched. Only `stats` state was updated via `setLiveStats(newStats)`. The plan requires "all views (Statistics, Recommendations, History) re-render with the new data without a full page reload."
+
+**Approach chosen: Option A — Re-fetch draws after refresh**
+
+In `App.tsx`, after `handleUpdate()` sets the new `liveStats`, it now also calls `void drawsApi.refetch()`. The `useDraws` hook already exposed a `refetch` function that re-fetches `/api/draws` and updates `drawsApi.data` state. Since `const draws = drawsApi.data` is used directly (reactive React state), the History view automatically re-renders with the updated draw records when `refetch()` completes.
+
+Option A was chosen over Option B because:
+- No server-side changes are required (the fix is entirely in the React client)
+- The `drawsApi.refetch` function already existed and was designed for this use case
+- Adding `draws` to `RefreshResponse` would require changes to both the server type and `src/types.ts`, touching more files than necessary
+
+**Files changed:**
+- `src/client/src/App.tsx` — added `void drawsApi.refetch()` call inside `handleUpdate`
+
+**New Docker image tag:** `harness-eng-test:2026-04-11-history-fix`
+
+**Verification:**
+- `bun run build` in `src/client/` — 0 errors, built in ~400ms
+- `docker build -t harness-eng-test:2026-04-11-history-fix .` — success
+- Container `GET /api/draws` → draw_count: 1931, last: 2026-04-08
+- Container `POST /api/refresh` → updated: false, message: "Already up to date"

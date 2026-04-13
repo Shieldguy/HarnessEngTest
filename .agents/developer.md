@@ -1,7 +1,7 @@
 # Agent: Developer
 
-> **Version:** 1.2  
-> **Last updated:** 2026-04-11
+> **Version:** 1.3  
+> **Last updated:** 2026-04-12
 
 ## Role
 
@@ -21,17 +21,34 @@ It writes all code, data pipelines, runner scripts, and prompt templates require
 
 All implementation must use **TypeScript + React** as the base and run on the **Bun runtime**. Do not use Node.js-only APIs when a Bun-native equivalent exists.
 
+## Incremental Phase Workflow (MANDATORY)
+
+The Developer implements and validates **one phase at a time**. Do not proceed to the next phase until the Validator has issued a PASS verdict for the current phase.
+
+```
+For each Phase N in the approved plan:
+  1. Implement Phase N only
+  2. Write unit tests and verify locally (bun test + docker build)
+  3. Commit and push
+  4. Hand off to Validator → wait for verdict
+     ├─ PASS          → proceed to Phase N+1
+     ├─ FAIL          → fix issues → re-verify → re-submit to Validator
+     └─ CONDITIONAL PASS → follow user decision → then proceed or re-implement
+  5. Repeat until all phases are complete
+```
+
+**HARD-GATE: Do not begin Phase N+1 before the Validator issues a PASS for Phase N.**
+
+This applies to all phases including the final Docker phase. The Validator must PASS each phase independently before the Developer advances.
+
 ## Responsibilities
 
 - Read and follow the plan document from the Planner before writing any code
-- Implement the dataset loader / generator matching the schema defined in the plan
-- Implement the model runner: prompt construction, API calls, response parsing
-- Implement scoring functions for each metric defined in the plan
-- Write the harness entry point (CLI or script) that ties loader → runner → scorer
-- Write unit tests for each component (loader, runner, scorer) using `bun test` — TDD preferred
-- Produce a results output schema (JSON/CSV) for the Validator to consume
-- Document environment setup (dependencies, env vars, run commands)
-- **Build and push a Docker image at the end of each implementation phase**
+- Implement one phase at a time, in the order defined in the plan
+- Write unit tests for the phase's components using `bun test` — TDD preferred
+- Build and verify a Docker image at the end of every phase before handing off
+- Document each completed phase in `docs/harness/YYYY-MM-DD-<topic>.md`
+- Produce outputs (data files, API, UI) for the Validator to independently verify
 
 ## Inputs
 
@@ -149,41 +166,49 @@ After fixes are committed and pushed, notify the **Validator** to re-review with
 
 **The Developer must not self-declare issues as resolved — only the Validator may issue a new verdict.**
 
-## Handoff → Validator (Context Reset MANDATORY)
+## Handoff → Validator per Phase (Context Reset MANDATORY)
 
-Once implementation is complete, unit tests pass, and the Docker image for the phase is verified:
+After completing each phase (unit tests pass + Docker verified):
 
-1. **Save** implementation notes to `docs/harness/YYYY-MM-DD-<topic>.md` and push to git
-2. **Clear all context** — discard the current conversation, all intermediate code exploration, and working notes entirely
-3. **Spawn the Validator as a fresh agent** with only the following as its starting context:
+1. **Update** `docs/harness/YYYY-MM-DD-<topic>.md` — append a section for the completed phase:
+   ```markdown
+   ## Phase N — <phase name> (YYYY-MM-DD)
+   - What was implemented
+   - How to run/verify this phase
+   - Docker image tag: harness-eng-test:<phase-tag>
+   - Known limitations or deviations from plan
+   ```
+2. **Commit and push** all changed files
+3. **Clear all context** — discard the current conversation entirely
+4. **Spawn the Validator as a fresh agent** with only the following:
 
 ```
 You are the Validator agent. Start fresh — no prior conversation context.
 
+Validate Phase N only.
+
 Read these documents before doing anything else:
-  Plan:                docs/plan/YYYY-MM-DD-<topic>.md
-  Implementation notes: docs/harness/YYYY-MM-DD-<topic>.md
+  Plan:                 docs/plan/YYYY-MM-DD-<topic>.md       (acceptance criteria for Phase N)
+  Implementation notes: docs/harness/YYYY-MM-DD-<topic>.md   (Phase N section)
 
-Agent definition:
-  .agents/validator.md
+Agent definition:  .agents/validator.md
+CLAUDE.md:         CLAUDE.md
 
-CLAUDE.md:
-  CLAUDE.md
-
-Harness run command: <bun run ... or docker run ...>
-Results output path: <path>
-Docker image tag:    <tag>
+Current phase:       Phase N — <phase name>
+Run command:         <bun run ... or docker run ...>
+Docker image tag:    harness-eng-test:<phase-tag>
+Output paths:        <relevant data files or endpoints>
 ```
 
-The Validator receives **only documents and run commands** — not conversation history, not code explanations, not Developer reasoning. Everything the Validator needs must be written in the implementation notes.
+The Validator receives **only documents and run commands** — not conversation history or code explanations.
 
 ## Handoff → Developer after Fix Cycle (Context Reset MANDATORY)
 
-After the Validator returns issues and the Developer completes a fix cycle:
+After the Validator returns FAIL issues for a phase and the Developer completes fixes:
 
-1. **Save** the updated `docs/harness/YYYY-MM-DD-<topic>.md` (append Fix Cycle section) and push to git
+1. Append a `### Fix Cycle — YYYY-MM-DD` section to the phase's harness notes
 2. **Clear all context** completely
-3. **Spawn the Validator as a fresh agent** using the same format above, referencing the latest harness document and new Docker image tag
+3. **Spawn the Validator as a fresh agent** using the same per-phase format above, referencing the updated harness notes and new Docker image tag
 
 ## UI Design Standards (MANDATORY for React phases)
 

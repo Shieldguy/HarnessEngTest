@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-> **Version:** 1.0  
-> **Last updated:** 2026-04-10
+> **Version:** 1.1  
+> **Last updated:** 2026-04-12
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -19,8 +19,21 @@ All harness engineering work in this repository follows a three-agent workflow. 
 | **Developer** | [`.agents/developer.md`](.agents/developer.md) | Implements the harness (loader, runner, scorer, CLI) based on the approved plan. Produces `src/` and `docs/harness/`. |
 | **Validator** | [`.agents/validator.md`](.agents/validator.md) | Independently runs and verifies the harness against the plan's acceptance criteria. Produces `docs/validation/`. Issues verdict: PASS / FAIL / CONDITIONAL PASS. |
 
-**Workflow order:** Planner → (user approval) → Developer → Validator  
+**Workflow order:** Planner → (user approval) → Developer ⇄ Validator (per phase) → Final Report
+
+```
+Planner
+  └─► Developer: implement Phase 1
+        └─► Validator: validate Phase 1
+              ├─ PASS → Developer: implement Phase 2
+              │           └─► Validator: validate Phase 2
+              │                 └─ ... repeat per phase ...
+              │                       └─ Final Report (all phases PASS)
+              └─ FAIL → (user approval) → Developer: fix → Validator: re-validate
+```
+
 **HARD-GATE:** The Developer must not write code before the Planner's plan is approved.  
+**HARD-GATE:** The Developer must not begin the next phase before the Validator issues PASS for the current phase.  
 **HARD-GATE:** The Validator must not mark work complete without execution evidence.
 
 Refer to the individual `.agents/*.md` files for detailed inputs, outputs, constraints, and handoff rules for each role.
